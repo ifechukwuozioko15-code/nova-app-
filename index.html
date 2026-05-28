@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NovaPulse - Free Crypto Trading Simulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="google-adsense-account" content="ca-pub-5643841764289125">
+  <meta name="description" content="NovaPulse is a free professional cryptocurrency trading simulator. Practice trading Bitcoin and Ethereum with $10,000 virtual money. No real money needed.">
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00c853">
+  <link rel="apple-touch-icon" href="/icon.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js');
+      });
+    }
+  </script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- TradingView -->
+  <script src="https://s3.tradingview.com/tv.js"></script>
+
+  <!-- Google AdSense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5643841764289125" crossorigin="anonymous"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: #0b0f19;
+      color: white;
+      width: 100%;
+      overflow-x: hidden;
+    }
+
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 220px;
+      min-width: 220px;
+      background: #111827;
+      min-height: 100vh;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar h2 { color: #00c853; margin-top: 0; }
+    .sidebar nav { flex: 1; }
+
+    .sidebar nav button {
+      width: 100%;
+      margin: 4px 0;
+      padding: 10px;
+      background: #1f2937;
+      border: 1px solid transparent;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: left;
+      font-size: 14px;
+    }
+    .sidebar nav button:hover  { background: #00c853; }
+    .sidebar nav button.active { background: #00c853; border-color: #00c853; }
+
+    .sidebar-footer { margin-top: auto; padding-top: 12px; }
+
+    .btn-logout {
+      width: 100%;
+      padding: 10px;
+      background: #d50000;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .bottom-nav { display: none; }
+
+    .main {
+      flex: 1;
+      padding: 16px;
+      overflow-x: hidden;
+      min-width: 0;
+    }
+
+    .topbar {
+      background: #111827;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+    }
+
+    .topbar-row1 { font-size: 13px; margin-bottom: 8px; }
+
+    .topbar-row2 {
+      display: flex;
+      gap: 16px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    .price-item { display: flex; gap: 5px; align-items: center; }
+    .price-value { color: #00c853; }
+
+    .card {
+      background: #111827;
+      padding: 14px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      width: 100%;
+    }
+
+    .card h3 { margin-top: 0; font-size: 15px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 14px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 11px 10px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #0b0f19;
+      color: white;
+      font-size: 16px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: bold;
+    }
+
+    .buy  { background: #00c853; color: white; }
+    .sell { background: #d50000; color: white; }
+
+    .error-msg {
+      background: #7f1d1d;
+      border: 1px solid #d50000;
+      color: #fca5a5;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-top: 8px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .section { display: none; }
+    .section.active { display: block; }
+    #loginSection { display: block; }
+    #sidebarNav   { display: none; }
+
+    #chatMessages {
+      height: 260px;
+      overflow-y: scroll;
+      background: #0b0f19;
+      border-radius: 8px;
+      padding: 8px;
+      margin-top: 8px;
+      border: 1px solid #374151;
+    }
+
+    #chatMessages p { margin: 4px 0; font-size: 13px; word-break: break-word; }
+    .chat-user { color: #00c853; font-weight: bold; }
+
+    #leaderboardList { list-style: none; padding: 0; margin: 0; }
+
+    #leaderboardList li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 4px;
+      border-bottom: 1px solid #1f2937;
+      font-size: 14px;
+      gap: 8px;
+    }
+
+    #leaderboardList li .rank  { min-width: 30px; font-weight: bold; }
+    #leaderboardList li .email { flex: 1; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #leaderboardList li .value { font-weight: bold; color: #00c853; white-space: nowrap; }
+
+    .rank-1 .rank { color: gold; }
+    .rank-2 .rank { color: silver; }
+    .rank-3 .rank { color: #cd7f32; }
+
+    .ad-banner {
+      background: #111827;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      text-align: center;
+      min-height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .affiliate-banner {
+      background: linear-gradient(135deg, #1a2035 0%, #111827 100%);
+      border: 1px solid #f0b90b33;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .affiliate-banner .aff-text { flex: 1; }
+    .affiliate-banner .aff-text p { margin: 0; font-size: 13px; color: #9ca3af; }
+    .affiliate-banner .aff-text strong { font-size: 14px; color: white; }
+
+    .affiliate-banner .aff-btn {
+      background: #f0b90b;
+      color: #0b0f19;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .affiliate-banner .aff-btn:hover { background: #d4a017; }
+
+    .tip-card {
+      background: #0b0f19;
+      padding: 12px;
+      border-radius: 8px;
+      border-left: 3px solid #00c853;
+      margin-bottom: 10px;
+    }
+
+    .tip-card strong { font-size: 14px; }
+    .tip-card p { color: #9ca3af; font-size: 13px; margin: 4px 0 0; }
+
+    /* ===== COOKIE CONSENT BANNER ===== */
+    #cookieBanner {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1f2937;
+      border-top: 1px solid #374151;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      z-index: 9999;
+      flex-wrap: wrap;
+    }
+    #cookieBanner p {
+      margin: 0;
+      font-size: 13px;
+      color: #d1d5db;
+      flex: 1;
+      min-width: 200px;
+    }
+    #cookieBanner a { color: #00c853; }
+    #cookieBanner .cookie-btns { display: flex; gap: 8px; flex-shrink: 0; }
+    #cookieBanner button {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    #cookieAccept { background: #00c853; color: white; }
+    #cookieDecline { background: #374151; color: white; }
+
+    /* ===== SITE FOOTER ===== */
+    .site-footer {
+      background: #111827;
+      border-top: 1px solid #1f2937;
+      padding: 20px 16px;
+      margin-top: 20px;
+      font-size: 13px;
+      color: #6b7280;
+      text-align: center;
+    }
+    .site-footer a {
+      color: #9ca3af;
+      text-decoration: none;
+      margin: 0 8px;
+    }
+    .site-footer a:hover { color: #00c853; }
+    .site-footer .footer-links { margin-bottom: 10px; }
+    .disclaimer-box {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #9ca3af;
+      line-height: 1.5;
+      text-align: left;
+    }
+
+    /* ===== POLICY PAGES ===== */
+    .policy-content {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .policy-content h1 { color: #00c853; font-size: 22px; }
+    .policy-content h2 { color: #e5e7eb; font-size: 16px; margin-top: 24px; }
+    .policy-content p, .policy-content li {
+      color: #9ca3af;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .policy-content ul { padding-left: 20px; }
+    .policy-content .back-btn {
+      background: #1f2937;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .policy-content .back-btn:hover { background: #374151; }
+
+    @media (max-width: 640px) {
+      .sidebar { display: none !important; }
+
+      .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #111827;
+        border-top: 1px solid #1f2937;
+        z-index: 100;
+      }
+
+      .bottom-nav button {
+        flex: 1;
+        padding: 10px 2px 8px;
+        background: none;
+        border: none;
+        color: #9ca3af;
+        font-size: 10px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+      }
+      .bottom-nav button .nav-icon { font-size: 18px; line-height: 1; }
+      .bottom-nav button.active    { color: #00c853; }
+
+      .mobile-logout-bar {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 10px;
+      }
+      .mobile-logout-bar button {
+        padding: 7px 16px;
+        background: #d50000;
+        border: none;
+        color: white;
+        border-radius: 8px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .main { padding: 12px 12px 80px; }
+      .grid { grid-template-columns: 1fr; }
+      .card { max-width: 100% !important; }
+      #loginSection .card { margin: 30px 0 0 !important; }
+
+      #cookieBanner { flex-direction: column; text-align: center; }
+      #cookieBanner .cookie-btns { width: 100%; }
+      #cookieBanner button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== COOKIE CONSENT BANNER ===== -->
+<div id="cookieBanner" style="display:none">
+  <p>
+    We use cookies and similar technologies to improve your experience, show personalized ads, and analyze traffic.
+    By clicking "Accept", you agree to our use of cookies as described in our
+    <a href="#" onclick="showPolicyPage('privacy'); return false;">Privacy Policy</a>.
+  </p>
+  <div class="cookie-btns">
+    <button id="cookieDecline" onclick="handleCookie(false)">Decline</button>
+    <button id="cookieAccept"  onclick="handleCookie(true)">Accept All</button>
+  </div>
+</div>
+
+<div class="app-shell">
+
+  <div class="sidebar" id="desktopSidebar" style="display:none">
+    <h2>NovaPulse</h2>
+    <nav id="sidebarNav">
+      <button class="active" onclick="showSection('dashboard', this)">Dashboard</button>
+      <button onclick="showSection('trade',       this)">Trade</button>
+      <button onclick="showSection('markets',     this)">Markets</button>
+      <button onclick="showSection('wallet',      this)">Wallet</button>
+      <button onclick="showSection('chat',        this)">Chat</button>
+      <button onclick="showSection('leaderboard', this)">Leaderboard</button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <div class="mobile-logout-bar" id="mobileLogoutBar" style="display:none">
+      <button onclick="logout()">Logout</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="loginSection">
+      <div class="card" style="max-width:400px;margin:60px auto">
+        <h2 style="margin-top:0;color:#00c853">NovaPulse</h2>
+        <p style="color:#9ca3af;margin-top:0">Professional Crypto Trading Simulator — Practice trading Bitcoin and Ethereum with $10,000 virtual money. Free forever.</p>
+        <div class="disclaimer-box">
+          ⚠️ <strong style="color:#e5e7eb">Disclaimer:</strong> NovaPulse is a simulation platform for educational purposes only. All funds are virtual. This is not financial advice and no real money is involved.
+        </div>
+        <input id="emailInput"    type="email"    placeholder="Email">
+        <input id="passwordInput" type="password" placeholder="Password">
+        <div id="authError" class="error-msg"></div>
+        <button class="btn buy"                                    onclick="login()">Login</button>
+        <button class="btn" style="background:#374151;color:white" onclick="register()">Register Free</button>
+        <p style="color:#6b7280;font-size:12px;margin-top:12px;text-align:center">
+          By registering, you agree to our
+          <a href="#" style="color:#00c853" onclick="showPolicyPage('terms'); return false;">Terms of Service</a> and
+          <a href="#" style="color:#00c853" onclick="showPolicyPage('privacy'); return false;">Privacy Policy</a>.
+        </p>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboardSection" class="section">
+
+      <div class="affiliate-banner">
+        <div class="aff-text">
+          <strong>Ready to trade real crypto?</strong>
+          <p>Sign up on Binance and get up to 20% fee discount</p>
+        </div>
+        <a class="aff-btn" href="https://www.binance.com/en/register?ref=GRO_28502_HQFTQ" target="_blank" rel="noopener sponsored">
+          Try Binance 🚀
+        </a>
+      </div>
+
+      <div class="ad-banner">
+        <ins class="adsbygoogle"
+          style="display:block;width:100%;height:90px"
+          data-ad-client="ca-pub-5643841764289125"
+          data-ad-slot="2727891250"
+          data-ad-format="horizontal"
+          data-full-width-responsive="true"></ins>
+        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+      </div>
+
+      <div class="topbar">
+        <div class="topbar-row1">
+          Portfolio: <strong id="totalDisplay">$0.00</strong> &nbsp;|&nbsp; USD: <strong id="usdDisplay">$0.00</strong>
+        </div>
+        <div class="topbar-row2">
+          <div class="price-item">
+            <span style="color:#9ca3af">BTC:</span>
+            <span class="price-value" id="btcPriceDisplay">Loading...</span>
+          </div>
+          <div class="price-item">
+            <span style="color:#9ca3af">ETH:</span>
+            <span class="price-value" id="ethPriceDisplay">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>BTC/USDT Chart</h3>
+          <div id="tvChart" style="height:320px;"></div>
+        </div>
+        <div class="card">
+          <h3>Wallet</h3>
+          <p style="margin:6px 0">USD: <strong>$<span id="usdDisplay2">0.00</span></strong></p>
+          <p style="margin:6px 0">BTC: <strong><span id="btcDisplay">0.000000</span></strong></p>
+          <p style="margin:6px 0">ETH: <strong><span id="ethDisplay">0.000000</span></strong></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="color:#00c853">About NovaPulse</h3>
+        <p style="color:#9ca3af;font-size:14px;line-height:1.6">NovaPulse is a free professional cryptocurrency trading simulator. Practice trading Bitcoin (BTC) and Ethereum (ETH) with $10,000 in virtual money — no real money needed. Learn how crypto markets work, test your trading strategies, and compete with other traders on the global leaderboard.</p>
+        <p style="color:#9ca3af;font-size:14px;line-height:1.6">Whether you are a beginner learning about cryptocurrency or an experienced trader testing new strategies, NovaPulse gives you a safe and realistic environment to practice without financial risk.</p>
+        <div class="disclaimer-box" style="margin-top:12px">
+          ⚠️ <strong style="color:#e5e7eb">Risk Disclaimer:</strong> NovaPulse is for educational and entertainment purposes only. All trading activity uses virtual money. This platform does not provide financial advice. Cryptocurrency trading involves significant risk. Never invest real money you cannot afford to lose.
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="color:#00c853">Crypto Trading Tips</h3>
+        <div class="tip-card">
+          <strong>📈 Buy Low, Sell High</strong>
+          <p>The fundamental rule of trading. Monitor price trends and buy when prices dip, then sell when they rise.</p>
+        </div>
+        <div class="tip-card">
+          <strong>🔄 Diversify Your Portfolio</strong>
+          <p>Don't put all your money in one coin. Split your investment between Bitcoin and Ethereum to reduce risk.</p>
+        </div>
+        <div class="tip-card">
+          <strong>📊 Study the Charts</strong>
+          <p>Use the live BTC/USDT chart to understand market patterns. Practice identifying support and resistance levels.</p>
+        </div>
+        <div class="tip-card">
+          <strong>⚠️ Manage Your Risk</strong>
+          <p>Never invest more than you can afford to lose. Use NovaPulse to practice risk management before trading real money.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRADE -->
+    <div id="tradeSection" class="section">
+      <div class="affiliate-banner">
+        <div class="aff-text">
+          <strong>Want to trade with real money?</strong>
+          <p>Open a free Binance account in minutes</p>
+        </div>
+        <a class="aff-btn" href="https://www.binance.com/en/register?ref=GRO_28502_HQFTQ" target="_blank" rel="noopener sponsored">
+          Open Account
+        </a>
+      </div>
+      <div class="card">
+        <h3>Trade Cryptocurrency</h3>
+        <p style="color:#9ca3af;font-size:13px;margin-bottom:12px">Practice buying and selling Bitcoin and Ethereum with your virtual $10,000 balance. Enter a USD amount and tap Buy or Sell to execute your trade instantly at the live market price.</p>
+        <div class="disclaimer-box">
+          ⚠️ All trades use <strong style="color:#e5e7eb">virtual money only</strong>. This is a simulator — no real funds are involved.
+        </div>
+        <label style="color:#9ca3af;font-size:13px">Select coin</label>
+        <select id="coinSelect">
+          <option value="btc">Bitcoin (BTC)</option>
+          <option value="eth">Ethereum (ETH)</option>
+        </select>
+        <label style="color:#9ca3af;font-size:13px;display:block;margin-top:12px">Amount in USD</label>
+        <input id="tradeAmount" type="number" min="1" placeholder="e.g. 500">
+        <div id="tradeError" class="error-msg"></div>
+        <button class="btn buy"  onclick="executeTrade('buy')">Buy</button>
+        <button class="btn sell" onclick="executeTrade('sell')">Sell</button>
+      </div>
+    </div>
+
+    <!-- MARKETS -->
+    <div id="marketsSection" class="section">
+      <div class="card">
+        <h3>Markets</h3>
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="color:#9ca3af;font-size:13px;text-align:left;border-bottom:1px solid #374151">
+              <th style="padding:8px 0">Asset</th>
+              <th style="padding:8px 0;text-align:right">Price (USD)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #1f2937">
+              <td style="padding:12px 0">Bitcoin <span style="color:#9ca3af">(BTC)</span></td>
+              <td style="padding:12px 0;text-align:right;color:#00c853;font-family:monospace">$<span id="btcPriceMarket">—</span></td>
+            </tr>
+            <tr>
+              <td style="padding:12px 0">Ethereum <span style="color:#9ca3af">(ETH)</span></td>
+              <td style="padding:12px 0;text-align:right;color:#00c853;font-family:monospace">$<span id="ethPriceMarket">—</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3 style="color:#00c853">About Cryptocurrency Markets</h3>
+        <p style="color:#9ca3af;font-size:14px;line-height:1.6">Cryptocurrency markets operate 24 hours a day, 7 days a week unlike traditional stock markets. Bitcoin (BTC) is the world's first and largest cryptocurrency by market capitalization. Ethereum (ETH) is the second largest and powers thousands of decentralized applications.</p>
+        <p style="color:#9ca3af;font-size:14px;line-height:1.6">Crypto prices are highly volatile and can change rapidly. This makes cryptocurrency trading both exciting and risky. Use NovaPulse to practice and build your trading skills safely before investing real money.</p>
+        <h3 style="color:#00c853;margin-top:16px">What is Bitcoin?</h3>
+        <p style="color:#9ca3af;font-size:14px;line-height:1.6">Bitcoin (BTC) was created in 2009 by an anonymous person known as Satoshi Nakamoto. It is a decentralized digital currency that operates without a central bank or government. Bitcoin transactions are verified by a network of computers and recorded on a public ledger called the blockchain.</p>
+        <h3 style="color:#00c853;margin-top:16px">What is Ethereum?</h3>
+        <p style="color:#9ca3af;font-size:14px;line-height:1.6">Ethereum (ETH) is a decentralized platform launched in 2015 that enables developers to build and deploy smart contracts and decentralized applications. Ether is the native cryptocurrency of the Ethereum network and is used to pay for transactions and computational services.</p>
+      </div>
+    </div>
+
+    <!-- WALLET -->
+    <div id="walletSection" class="section">
+      <div class="card">
+        <h3>Wallet</h3>
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>
+            <tr style="border-bottom:1px solid #1f2937">
+              <td style="padding:12px 0;color:#9ca3af">USD</td>
+              <td style="padding:12px 0;text-align:right;font-weight:bold">$<span id="usdWallet">0.00</span></td>
+              <td></td>
+            </tr>
+            <tr style="border-bottom:1px solid #1f2937">
+              <td style="padding:12px 0;color:#9ca3af">Bitcoin (BTC)</td>
+              <td style="padding:12px 0;text-align:right;font-weight:bold"><span id="btcWallet">0.000000</span></td>
+              <td style="padding:12px 0;text-align:right;color:#9ca3af;font-size:12px">&nbsp;≈ $<span id="btcValueWallet">0.00</span></td>
+            </tr>
+            <tr style="border-bottom:1px solid #1f2937">
+              <td style="padding:12px 0;color:#9ca3af">Ethereum (ETH)</td>
+              <td style="padding:12px 0;text-align:right;font-weight:bold"><span id="ethWallet">0.000000</span></td>
+              <td style="padding:12px 0;text-align:right;color:#9ca3af;font-size:12px">&nbsp;≈ $<span id="ethValueWallet">0.00</span></td>
+            </tr>
+            <tr>
+              <td style="padding:12px 0;font-weight:bold">Total</td>
+              <td colspan="2" style="padding:12px 0;text-align:right;font-weight:bold;color:#00c853;font-size:18px">$<span id="totalWallet">0.00</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div id="chatSection" class="section">
+      <div class="card">
+        <h3>Global Chat</h3>
+        <p style="color:#9ca3af;font-size:12px;margin-top:0">Be respectful. No spam, no financial advice, no harmful content. Violations may result in account removal.</p>
+        <div id="chatMessages"></div>
+        <input id="chatInput" type="text" placeholder="Type a message..." maxlength="300">
+        <button class="btn buy" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div id="leaderboardSection" class="section">
+      <div class="card">
+        <h3>Leaderboard</h3>
+        <p style="color:#9ca3af;font-size:13px;margin-bottom:12px">Top traders ranked by total portfolio value. Can you reach #1?</p>
+        <ul id="leaderboardList"></ul>
+      </div>
+      <div class="card">
+        <h3 style="color:#00c853">How to Climb the Leaderboard</h3>
+        <p style="color:#9ca3af;font-size:14px;line-height:1.6">Every new user starts with $10,000 in virtual USD. Your goal is to grow this amount by buying and selling Bitcoin and Ethereum at the right times. The trader with the highest total portfolio value — including cash and crypto holdings — tops the leaderboard.</p>
+        <p style="color:#9ca3af;font-size:14px;line-height:1.6">Study the live price charts, time your trades carefully, and manage your risk wisely. The leaderboard updates in real time so you can always track your ranking against other traders from around the world.</p>
+      </div>
+    </div>
+
+    <!-- PRIVACY POLICY PAGE -->
+    <div id="privacySection" class="section">
+      <div class="card policy-content">
+        <button class="back-btn" onclick="goBack()">← Back</button>
+        <h1>Privacy Policy</h1>
+        <p><strong style="color:#e5e7eb">Last updated: January 2025</strong></p>
+        <p>NovaPulse ("we", "our", or "us") operates the NovaPulse cryptocurrency trading simulator. This Privacy Policy explains how we collect, use, and protect your information when you use our service.</p>
+
+        <h2>1. Information We Collect</h2>
+        <p>We collect the following information when you use NovaPulse:</p>
+        <ul>
+          <li><strong style="color:#e5e7eb">Account information:</strong> Email address and password (stored securely via Firebase Authentication).</li>
+          <li><strong style="color:#e5e7eb">Trading data:</strong> Your virtual portfolio balances (USD, BTC, ETH) stored in Firebase Realtime Database.</li>
+          <li><strong style="color:#e5e7eb">Chat messages:</strong> Messages you send in the global chat.</li>
+          <li><strong style="color:#e5e7eb">Usage data:</strong> Pages visited, time spent, and interactions with our platform, collected via cookies and analytics tools.</li>
+          <li><strong style="color:#e5e7eb">Device information:</strong> Browser type, operating system, IP address, and device identifiers.</li>
+        </ul>
+
+        <h2>2. How We Use Your Information</h2>
+        <ul>
+          <li>To provide and operate the NovaPulse trading simulator.</li>
+          <li>To maintain your virtual portfolio and leaderboard rankings.</li>
+          <li>To display personalized advertisements via Google AdSense.</li>
+          <li>To analyze usage and improve our platform.</li>
+          <li>To send important service-related communications.</li>
+        </ul>
+
+        <h2>3. Google AdSense and Advertising</h2>
+        <p>We use Google AdSense to display advertisements on NovaPulse. Google AdSense uses cookies and similar tracking technologies to serve ads based on your prior visits to our site and other websites on the internet.</p>
+        <p>Google's use of advertising cookies enables it and its partners to serve ads based on your visit to NovaPulse and/or other sites on the Internet. You may opt out of personalized advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noopener" style="color:#00c853">Google Ads Settings</a>.</p>
+        <p>For more information about how Google uses data from sites that use its services, please visit: <a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener" style="color:#00c853">How Google uses data</a>.</p>
+
+        <h2>4. Cookies</h2>
+        <p>NovaPulse uses cookies to:</p>
+        <ul>
+          <li>Keep you logged in to your account.</li>
+          <li>Remember your preferences.</li>
+          <li>Serve and measure advertisements via Google AdSense.</li>
+          <li>Analyze website traffic and user behavior.</li>
+        </ul>
+        <p>You can control cookies through your browser settings. Disabling cookies may affect your ability to use certain features of NovaPulse.</p>
+
+        <h2>5. Third-Party Services</h2>
+        <p>NovaPulse uses the following third-party services, each with their own privacy policies:</p>
+        <ul>
+          <li><strong style="color:#e5e7eb">Firebase (Google):</strong> Authentication and database — <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener" style="color:#00c853">Firebase Privacy</a></li>
+          <li><strong style="color:#e5e7eb">Google AdSense:</strong> Advertising — <a href="https://policies.google.com/privacy" target="_blank" rel="noopener" style="color:#00c853">Google Privacy Policy</a></li>
+          <li><strong style="color:#e5e7eb">TradingView:</strong> Chart widgets — <a href="https://www.tradingview.com/privacy-policy/" target="_blank" rel="noopener" style="color:#00c853">TradingView Privacy Policy</a></li>
+          <li><strong style="color:#e5e7eb">CoinGecko:</strong> Live price data — <a href="https://www.coingecko.com/en/privacy" target="_blank" rel="noopener" style="color:#00c853">CoinGecko Privacy Policy</a></li>
+          <li><strong style="color:#e5e7eb">Binance (affiliate link):</strong> External exchange — <a href="https://www.binance.com/en/privacy" target="_blank" rel="noopener" style="color:#00c853">Binance Privacy Policy</a></li>
+        </ul>
+
+        <h2>6. Data Retention</h2>
+        <p>We retain your account data for as long as your account is active. You may request deletion of your account and associated data by contacting us at the email below.</p>
+
+        <h2>7. Children's Privacy</h2>
+        <p>NovaPulse is not intended for use by children under the age of 13. We do not knowingly collect personal information from children under 13. If you believe we have inadvertently collected data from a child, please contact us immediately.</p>
+
+        <h2>8. Your Rights</h2>
+        <p>Depending on your location, you may have the right to access, correct, or delete your personal data. To exercise these rights, contact us at: <strong style="color:#e5e7eb">support@novapulse.app</strong></p>
+
+        <h2>9. Changes to This Policy</h2>
+        <p>We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated date. Continued use of NovaPulse after changes constitutes acceptance of the updated policy.</p>
+
+        <h2>10. Contact Us</h2>
+        <p>If you have any questions about this Privacy Policy, please contact us at: <strong style="color:#e5e7eb">support@novapulse.app</strong></p>
+      </div>
+    </div>
+
+    <!-- TERMS OF SERVICE PAGE -->
+    <div id="termsSection" class="section">
+      <div class="card policy-content">
+        <button class="back-btn" onclick="goBack()">← Back</button>
+        <h1>Terms of Service</h1>
+        <p><strong style="color:#e5e7eb">Last updated: January 2025</strong></p>
+        <p>Welcome to NovaPulse. By accessing or using our platform, you agree to be bound by these Terms of Service. Please read them carefully.</p>
+
+        <h2>1. About NovaPulse</h2>
+        <p>NovaPulse is a <strong style="color:#e5e7eb">free cryptocurrency trading simulator</strong> for educational and entertainment purposes only. All trading activity uses virtual money. No real money, cryptocurrency, or financial instruments are involved at any time.</p>
+
+        <h2>2. Not Financial Advice</h2>
+        <p>NovaPulse does not provide financial advice, investment advice, or any form of professional financial services. Nothing on this platform should be construed as a recommendation to buy, sell, or hold any real cryptocurrency or other financial asset. Always consult a qualified financial advisor before making real investment decisions.</p>
+
+        <h2>3. Eligibility</h2>
+        <p>You must be at least 13 years of age to use NovaPulse. By using this platform, you represent and warrant that you meet this age requirement.</p>
+
+        <h2>4. User Accounts</h2>
+        <ul>
+          <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
+          <li>You are responsible for all activities that occur under your account.</li>
+          <li>You agree to provide accurate information when registering.</li>
+          <li>You may not create accounts for others without their consent.</li>
+        </ul>
+
+        <h2>5. Acceptable Use</h2>
+        <p>You agree NOT to:</p>
+        <ul>
+          <li>Use NovaPulse for any illegal purpose.</li>
+          <li>Post spam, abusive, or harmful content in the global chat.</li>
+          <li>Attempt to manipulate the leaderboard through unauthorized means.</li>
+          <li>Reverse engineer, hack, or interfere with the platform.</li>
+          <li>Impersonate other users or NovaPulse staff.</li>
+          <li>Post content that is hateful, discriminatory, or sexually explicit.</li>
+        </ul>
+
+        <h2>6. Advertising</h2>
+        <p>NovaPulse displays advertisements served by Google AdSense and may include affiliate links to third-party services such as Binance. Affiliate links are marked with "sponsored" and we may earn a commission if you register through them. This does not affect the price you pay.</p>
+
+        <h2>7. Virtual Currency</h2>
+        <p>The virtual USD, BTC, and ETH balances in NovaPulse have no real monetary value. They cannot be withdrawn, transferred, or exchanged for real money or real cryptocurrency under any circumstances.</p>
+
+        <h2>8. Disclaimer of Warranties</h2>
+        <p>NovaPulse is provided "as is" without any warranties of any kind. We do not guarantee that the platform will be error-free, uninterrupted, or that virtual prices will exactly match real market prices.</p>
+
+        <h2>9. Limitation of Liability</h2>
+        <p>NovaPulse and its operators shall not be liable for any direct, indirect, incidental, or consequential damages arising from your use of the platform, including any decisions you make regarding real cryptocurrency investments based on your experience with NovaPulse.</p>
+
+        <h2>10. Termination</h2>
+        <p>We reserve the right to suspend or terminate accounts that violate these Terms of Service, at our sole discretion and without prior notice.</p>
+
+        <h2>11. Changes to Terms</h2>
+        <p>We may update these Terms of Service at any time. Continued use of NovaPulse after changes constitutes acceptance of the new terms.</p>
+
+        <h2>12. Contact</h2>
+        <p>For questions about these Terms, contact us at: <strong style="color:#e5e7eb">support@novapulse.app</strong></p>
+      </div>
+    </div>
+
+    <!-- SITE FOOTER -->
+    <footer class="site-footer" id="siteFooter" style="display:none">
+      <div class="disclaimer-box" style="max-width:700px;margin:0 auto 12px">
+        ⚠️ <strong style="color:#e5e7eb">Disclaimer:</strong> NovaPulse is a cryptocurrency trading simulator for educational purposes only. All balances are virtual. This is not financial advice. Cryptocurrency trading carries significant risk. Never invest money you cannot afford to lose.
+      </div>
+      <div class="footer-links">
+        <a href="#" onclick="showPolicyPage('privacy'); return false;">Privacy Policy</a>
+        <a href="#" onclick="showPolicyPage('terms'); return false;">Terms of Service</a>
+        <a href="mailto:support@novapulse.app">Contact Us</a>
+      </div>
+      <p style="margin:0;font-size:12px">© 2025 NovaPulse. All rights reserved. | For educational use only. Not financial advice.</p>
+      <p style="margin:4px 0 0;font-size:11px;color:#4b5563">Advertisements on this site are served by Google AdSense. Affiliate links are marked as sponsored.</p>
+    </footer>
+
+  </div>
+</div>
+
+<!-- MOBILE BOTTOM NAV -->
+<nav class="bottom-nav" id="bottomNav" style="display:none">
+  <button class="active" onclick="showSection('dashboard', this)">
+    <span class="nav-icon">📊</span>Home
+  </button>
+  <button onclick="showSection('trade', this)">
+    <span class="nav-icon">💱</span>Trade
+  </button>
+  <button onclick="showSection('markets', this)">
+    <span class="nav-icon">📈</span>Markets
+  </button>
+  <button onclick="showSection('wallet', this)">
+    <span class="nav-icon">💰</span>Wallet
+  </button>
+  <button onclick="showSection('chat', this)">
+    <span class="nav-icon">💬</span>Chat
+  </button>
+  <button onclick="showSection('leaderboard', this)">
+    <span class="nav-icon">🏆</span>Rank
+  </button>
+</nav>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyC9BFM2eV3FRUBZ-OryoFWGHVft4msPrLk",
+  authDomain: "stanleycryptochat.firebaseapp.com",
+  databaseURL: "https://stanleycryptochat-default-rtdb.firebaseio.com",
+  projectId: "stanleycryptochat",
+  storageBucket: "stanleycryptochat.firebasestorage.app",
+  messagingSenderId: "1030796754537",
+  appId: "1:1030796754537:web:4a9d1fdc6c03b4467e6cf8"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.database();
+
+let btcVal = 0, ethVal = 0;
+let usdBal = 0, btcBal = 0, ethBal = 0;
+let chatUnsub = null, leaderboardUnsub = null, walletUnsub = null;
+let priceInterval = null;
+let listenersActive = false;
+let previousSection = 'dashboard';
+
+function isMobile() { return window.innerWidth <= 640; }
+
+// ===== COOKIE CONSENT =====
+function initCookieBanner() {
+  if (!localStorage.getItem('cookieConsent')) {
+    document.getElementById('cookieBanner').style.display = 'flex';
+  }
+}
+
+function handleCookie(accepted) {
+  localStorage.setItem('cookieConsent', accepted ? 'accepted' : 'declined');
+  document.getElementById('cookieBanner').style.display = 'none';
+}
+
+initCookieBanner();
+
+// ===== POLICY PAGES =====
+function showPolicyPage(page) {
+  // Remember which section we were on
+  const active = document.querySelector('.section.active');
+  if (active) previousSection = active.id.replace('Section', '');
+
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(page + 'Section').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(previousSection + 'Section').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function showSection(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(name + 'Section').classList.add('active');
+  document.querySelectorAll('#sidebarNav button, .bottom-nav button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  previousSection = name;
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function friendlyAuthError(code) {
+  const map = {
+    'auth/user-not-found':       'No account found with that email.',
+    'auth/wrong-password':       'Incorrect password.',
+    'auth/invalid-credential':   'Invalid email or password.',
+    'auth/email-already-in-use': 'That email is already registered. Try logging in.',
+    'auth/invalid-email':        'Please enter a valid email address.',
+    'auth/weak-password':        'Password must be at least 6 characters.',
+  };
+  return map[code] || 'Something went wrong. Please try again.';
+}
+
+function login() {
+  const email = document.getElementById('emailInput').value.trim();
+  const pass  = document.getElementById('passwordInput').value;
+  document.getElementById('authError').style.display = 'none';
+  if (!email || !pass) { showAuthError('Please enter your email and password.'); return; }
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(err => showAuthError(friendlyAuthError(err.code)));
+}
+
+function register() {
+  const email = document.getElementById('emailInput').value.trim();
+  const pass  = document.getElementById('passwordInput').value;
+  document.getElementById('authError').style.display = 'none';
+  if (!email || !pass) { showAuthError('Please enter your email and password.'); return; }
+  if (pass.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+  auth.createUserWithEmailAndPassword(email, pass)
+    .catch(err => showAuthError(friendlyAuthError(err.code)));
+}
+
+function logout() {
+  teardown();
+  auth.signOut().then(() => location.reload());
+}
+
+function teardown() {
+  if (walletUnsub)      { walletUnsub();     walletUnsub = null; }
+  if (chatUnsub)        { chatUnsub();        chatUnsub = null; }
+  if (leaderboardUnsub) { leaderboardUnsub(); leaderboardUnsub = null; }
+  if (priceInterval)    { clearInterval(priceInterval); priceInterval = null; }
+  listenersActive = false;
+}
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    if (listenersActive) return;
+    listenersActive = true;
+
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('siteFooter').style.display = 'block';
+
+    if (isMobile()) {
+      document.getElementById('bottomNav').style.display       = 'flex';
+      document.getElementById('mobileLogoutBar').style.display = 'flex';
+    } else {
+      document.getElementById('desktopSidebar').style.display = 'flex';
+      document.getElementById('sidebarNav').style.display     = 'block';
+    }
+
+    showSection('dashboard', null);
+    const firstDesktop = document.querySelector('#sidebarNav button');
+    const firstMobile  = document.querySelector('.bottom-nav button');
+    if (firstDesktop) firstDesktop.classList.add('active');
+    if (firstMobile)  firstMobile.classList.add('active');
+
+    loadWallet(user.uid, user.email);
+    startPrices();
+    setupChat();
+    setupLeaderboard();
+    initChart();
+  }
+});
+
+function loadWallet(uid, email) {
+  const ref = db.ref('users/' + uid);
+  ref.once('value').then(snap => {
+    const d = snap.val();
+    if (!d) {
+      ref.set({ usd: 10000, btc: 0, eth: 0, email });
+    } else if ((d.usd === 0 || !d.usd) && (d.btc === 0 || !d.btc) && (d.eth === 0 || !d.eth)) {
+      ref.update({ usd: 10000, email });
+    }
+  });
+  const handler = ref.on('value', snap => {
+    const d = snap.val();
+    if (!d) return;
+    usdBal = d.usd || 0;
+    btcBal = d.btc || 0;
+    ethBal = d.eth || 0;
+    updateUI();
+  });
+  walletUnsub = () => ref.off('value', handler);
+}
+
+function saveWallet() {
+  const uid = auth.currentUser && auth.currentUser.uid;
+  if (!uid) return;
+  db.ref('users/' + uid).update({ usd: usdBal, btc: btcBal, eth: ethBal });
+}
+
+async function fetchPrices() {
+  try {
+    const res  = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd');
+    const data = await res.json();
+    btcVal = data.bitcoin.usd;
+    ethVal = data.ethereum.usd;
+    updateUI();
+    renderLeaderboardWithPrices();
+  } catch (e) {
+    console.warn('Price fetch failed, will retry.');
+  }
+}
+
+function startPrices() {
+  fetchPrices();
+  priceInterval = setInterval(fetchPrices, 30000);
+}
+
+function executeTrade(type) {
+  const errEl = document.getElementById('tradeError');
+  errEl.style.display = 'none';
+
+  if (btcVal === 0 || ethVal === 0) {
+    errEl.textContent = 'Prices are still loading. Please wait a moment.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const coin   = document.getElementById('coinSelect').value;
+  const usdAmt = parseFloat(document.getElementById('tradeAmount').value);
+
+  if (isNaN(usdAmt) || usdAmt <= 0) {
+    errEl.textContent = 'Enter a valid USD amount greater than 0.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const price   = coin === 'btc' ? btcVal : ethVal;
+  const coinAmt = usdAmt / price;
+  const balance = coin === 'btc' ? btcBal : ethBal;
+
+  if (type === 'buy') {
+    if (usdAmt > usdBal) {
+      errEl.textContent = 'Not enough USD. Balance: $' + usdBal.toFixed(2);
+      errEl.style.display = 'block';
+      return;
+    }
+    usdBal -= usdAmt;
+    if (coin === 'btc') btcBal += coinAmt; else ethBal += coinAmt;
+  } else {
+    if (coinAmt > balance) {
+      errEl.textContent = 'Not enough ' + coin.toUpperCase() + '. Have: ' + balance.toFixed(6);
+      errEl.style.display = 'block';
+      return;
+    }
+    usdBal += usdAmt;
+    if (coin === 'btc') btcBal -= coinAmt; else ethBal -= coinAmt;
+  }
+
+  document.getElementById('tradeAmount').value = '';
+  saveWallet();
+  updateUI();
+}
+
+function updateUI() {
+  const total = usdBal + btcBal * btcVal + ethBal * ethVal;
+  const fmt = (n, d) => n.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  document.getElementById('totalDisplay').textContent    = '$' + fmt(total, 2);
+  document.getElementById('usdDisplay').textContent      = '$' + fmt(usdBal, 2);
+  document.getElementById('btcPriceDisplay').textContent = btcVal > 0 ? '$' + fmt(btcVal, 0) : 'Loading...';
+  document.getElementById('ethPriceDisplay').textContent = ethVal > 0 ? '$' + fmt(ethVal, 0) : 'Loading...';
+
+  document.getElementById('usdDisplay2').textContent = fmt(usdBal, 2);
+  document.getElementById('btcDisplay').textContent  = fmt(btcBal, 6);
+  document.getElementById('ethDisplay').textContent  = fmt(ethBal, 6);
+
+  document.getElementById('btcPriceMarket').textContent = btcVal > 0 ? fmt(btcVal, 0) : '—';
+  document.getElementById('ethPriceMarket').textContent = ethVal > 0 ? fmt(ethVal, 0) : '—';
+
+  document.getElementById('usdWallet').textContent      = fmt(usdBal, 2);
+  document.getElementById('btcWallet').textContent      = fmt(btcBal, 6);
+  document.getElementById('ethWallet').textContent      = fmt(ethBal, 6);
+  document.getElementById('btcValueWallet').textContent = fmt(btcBal * btcVal, 2);
+  document.getElementById('ethValueWallet').textContent = fmt(ethBal * ethVal, 2);
+  document.getElementById('totalWallet').textContent    = fmt(total, 2);
+}
+
+function setupChat() {
+  const handler = db.ref('chat').limitToLast(60).on('child_added', snap => {
+    const d = snap.val();
+    if (!d || !d.msg) return;
+    const p    = document.createElement('p');
+    const user = document.createElement('span');
+    user.className   = 'chat-user';
+    user.textContent = (d.user || 'anon').split('@')[0] + ': ';
+    p.appendChild(user);
+    p.appendChild(document.createTextNode(d.msg));
+    const box = document.getElementById('chatMessages');
+    box.appendChild(p);
+    box.scrollTop = box.scrollHeight;
+  });
+  chatUnsub = () => db.ref('chat').off('child_added', handler);
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg   = input.value.trim();
+  if (!msg || !auth.currentUser) return;
+  if (msg.length > 300) return;
+  db.ref('chat').push({ msg, user: auth.currentUser.email, ts: Date.now() });
+  input.value = '';
+}
+
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendChat();
+});
+
+let leaderboardData = null;
+
+function renderLeaderboardWithPrices() {
+  if (!leaderboardData || btcVal === 0 || ethVal === 0) return;
+
+  const entries = Object.values(leaderboardData)
+    .map(u => ({
+      email: u.email || 'unknown',
+      total: (u.usd || 0) + (u.btc || 0) * btcVal + (u.eth || 0) * ethVal
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  const list = document.getElementById('leaderboardList');
+  list.innerHTML = '';
+
+  entries.forEach((entry, i) => {
+    const li    = document.createElement('li');
+    const rank  = document.createElement('span');
+    const name  = document.createElement('span');
+    const value = document.createElement('span');
+
+    li.className    = i < 3 ? 'rank-' + (i + 1) : '';
+    rank.className  = 'rank';
+    name.className  = 'email';
+    value.className = 'value';
+
+    rank.textContent  = '#' + (i + 1);
+    name.textContent  = entry.email;
+    value.textContent = '$' + entry.total.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+    li.appendChild(rank);
+    li.appendChild(name);
+    li.appendChild(value);
+    list.appendChild(li);
+  });
+}
+
+function setupLeaderboard() {
+  const handler = db.ref('users').on('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+    leaderboardData = data;
+    renderLeaderboardWithPrices();
+  });
+  leaderboardUnsub = () => db.ref('users').off('value', handler);
+}
+
+function initChart() {
+  if (typeof TradingView === 'undefined') return;
+  new TradingView.widget({
+    container_id: 'tvChart',
+    symbol: 'BINANCE:BTCUSDT',
+    theme: 'dark',
+    autosize: true
+  });
+}
+</script>
+
+</body>
+</html>
